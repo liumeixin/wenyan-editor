@@ -1,6 +1,6 @@
 services:
   wenyan-editor:
-    build: .
+    image: ghcr.io/liumeixin/wenyan-editor:latest
     container_name: wenyan-editor
     restart: unless-stopped
     ports:
