@@ -1,0 +1,19 @@
+/* 主题: 薰衣草紫 */
+#wenyan {
+    background-color: #fbf9ff;
+    --wy-text-color: #333;
+    --wy-strong-color: #512da8;
+    --wy-h1-color: #512da8;
+    --wy-h2-color: #512da8;
+    --wy-h3-color: #512da8;
+    --wy-bq-bg: #f7f5fa;
+    --wy-bq-border: 4px solid #512da8;
+    --wy-bq-color: #333;
+    --wy-code-block-bg: #f6f4fa;
+    --wy-code-block-color: #512da8;
+    --wy-code-inline-color: #512da8;
+    --wy-link-color: #512da8;
+    --wy-link-border: 1px solid #512da8;
+    --wy-table-th-bg: #f7f5fa;
+    --wy-hr-border: 1px solid #512da8;
+}

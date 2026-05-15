@@ -1,0 +1,19 @@
+/* 主题: 马卡龙 */
+#wenyan {
+    background-color: white;
+    --wy-text-color: #333;
+    --wy-strong-color: #000;
+    --wy-h1-color: #e91e63;
+    --wy-h2-color: #e91e63;
+    --wy-h3-color: #000;
+    --wy-bq-bg: #fff9c4;
+    --wy-bq-border: 4px solid #e91e63;
+    --wy-bq-color: #333;
+    --wy-code-block-bg: #1a1a1a;
+    --wy-code-block-color: #e5e5e5;
+    --wy-code-inline-color: #000;
+    --wy-link-color: #e91e63;
+    --wy-link-border: 1px solid #e91e63;
+    --wy-table-th-bg: #fff9c4;
+    --wy-hr-border: 1px solid #000;
+}

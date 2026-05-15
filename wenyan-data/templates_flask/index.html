@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文言 Markdown 排版器</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; flex-direction: column; }
+        .topbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; }
+        .topbar h1 { font-size: 20px; font-weight: 600; }
+        .topbar .subtitle { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+        .theme-bar { background: white; border-bottom: 1px solid #e8e8e8; padding: 10px 20px; display: flex; align-items: center; gap: 10px; overflow-x: auto; flex-shrink: 0; }
+        .theme-bar .label { font-size: 13px; color: #666; white-space: nowrap; font-weight: 500; }
+        .theme-chip { padding: 5px 14px; border: 2px solid #e0e0e0; border-radius: 20px; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; background: white; user-select: none; }
+        .theme-chip:hover { border-color: #667eea; }
+        .theme-chip.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: transparent; color: white; }
+        .mix-panel { background: #fafafa; border-bottom: 1px solid #e8e8e8; padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; flex-shrink: 0; }
+        .mix-panel.open { max-height: 400px; padding: 12px 20px; }
+        .mix-toggle { background: none; border: 1px dashed #ccc; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: #888; white-space: nowrap; }
+        .mix-toggle:hover { border-color: #667eea; color: #667eea; }
+        .mix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .mix-group { background: white; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; }
+        .mix-group-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; }
+        .mix-options { display: flex; flex-wrap: wrap; gap: 4px; }
+        .mix-opt { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.15s; position: relative; }
+        .mix-opt:hover { transform: scale(1.15); }
+        .mix-opt.active { border-color: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.3); }
+        .main { flex: 1; display: flex; gap: 0; padding: 12px; min-height: 0; }
+        .editor-pane, .preview-pane { flex: 1; display: flex; flex-direction: column; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        .preview-pane { margin-left: 12px; }
+        .pane-header { padding: 10px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #333; }
+        .pane-actions { display: flex; gap: 6px; }
+        .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-primary:hover { box-shadow: 0 2px 8px rgba(102,126,234,0.4); }
+        .btn-secondary { background: #f0f0f0; color: #555; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        #editor { flex: 1; width: 100%; border: none; padding: 16px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 14px; line-height: 1.7; resize: none; outline: none; color: #333; background: #fefefe; }
+        #preview-container { flex: 1; overflow: auto; padding: 20px; background: #fafafa; }
+        #preview-container #wenyan { border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); min-height: 200px; }
+        .preview-placeholder { color: #bbb; text-align: center; padding: 80px 20px; font-size: 15px; }
+        .bottom-bar { padding: 10px 20px; background: white; border-top: 1px solid #e8e8e8; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .status { font-size: 12px; color: #999; }
+        .status.success { color: #10b981; }
+        .status.error { color: #ef4444; }
+        @media (max-width: 900px) { .main { flex-direction: column; } .preview-pane { margin-left: 0; margin-top: 12px; } .mix-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div>
+            <h1>📝 文言 Markdown 排版器</h1>
+            <div class="subtitle">一键换肤 · 元素混搭 · 微信公众号/小红书</div>
+        </div>
+        <div style="font-size:12px; opacity:0.7;">v2026.05</div>
+    </div>
+    <div class="theme-bar">
+        <span class="label">🎨 主题：</span>
+        <div id="theme-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <span style="color:#ccc;margin:0 4px;">|</span>
+        <span class="label" style="font-size:12px;color:#999;">自定义：</span>
+        <div id="custom-theme-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button class="mix-toggle" onclick="toggleMixPanel()">🔧 单元素混搭</button>
+    </div>
+    <div class="mix-panel" id="mix-panel">
+        <div class="mix-grid" id="mix-grid"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="saveCustomTheme()">💾 保存为自定义主题</button>
+            <span id="custom-theme-status" style="font-size:12px;color:#888;"></span>
+        </div>
+    </div>
+    <div class="main">
+        <div class="editor-pane">
+            <div class="pane-header">
+                <span>📄 Markdown 输入</span>
+                <div class="pane-actions">
+                    <button class="btn btn-secondary" onclick="loadExample()">📝 示例</button>
+                    <button class="btn btn-secondary" onclick="clearEditor()">🗑️ 清空</button>
+                </div>
+            </div>
+            <textarea id="editor" placeholder="在这里输入 Markdown 内容..."></textarea>
+        </div>
+        <div class="preview-pane">
+            <div class="pane-header">
+                <span>👁️ 实时预览</span>
+                <div class="pane-actions">
+                    <button class="btn btn-success" id="copy-btn" onclick="copyToWeChat()" disabled>📋 复制到公众号</button>
+                    <button class="btn btn-secondary" id="export-btn" onclick="exportHTML()" disabled>📥 导出 HTML</button>
+                </div>
+            </div>
+            <div id="preview-container">
+                <div class="preview-placeholder">输入 Markdown 后实时预览效果</div>
+            </div>
+        </div>
+    </div>
+    <div class="bottom-bar">
+        <span class="status" id="status">就绪</span>
+        <span class="status" id="char-count">0 字</span>
+    </div>
+
+<script>
+let currentTheme = 'default';
+let currentDimensions = {};
+let themesList = [];
+let dimensionsConfig = {};
+let debounceTimer = null;
+let currentHtml = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadThemes();
+    await loadDimensions();
+    bindEditor();
+    setStatus('就绪');
+});
+
+async function loadThemes() {
+    const resp = await fetch('/api/themes');
+    themesList = await resp.json();
+    renderThemeChips();
+    renderCustomThemeChips();
+    selectTheme('default');
+}
+
+async function loadDimensions() {
+    const resp = await fetch('/api/dimensions');
+    dimensionsConfig = await resp.json();
+    renderMixPanel();
+}
+
+function renderThemeChips() {
+    document.getElementById('theme-chips').innerHTML = themesList.map(t =>
+        '<div class="theme-chip' + (t.id === currentTheme ? ' active' : '') + '" data-id="' + t.id + '" onclick="selectTheme(\'' + t.id + '\')">' + t.label + '</div>'
+    ).join('');
+}
+
+async function renderCustomThemeChips() {
+    const customs = await getCustomThemes();
+    const c = document.getElementById('custom-theme-chips');
+    if (!Object.keys(customs).length) { c.innerHTML = '<span style="font-size:12px;color:#bbb;">无</span>'; return; }
+    c.innerHTML = Object.entries(customs).map(([id, t]) =>
+        '<div class="theme-chip' + (currentTheme === id ? ' active' : '') + '" data-id="' + id + '" style="border-color:#e0b0ff;" onclick="selectCustomTheme(\'' + id + '\')">' +
+        t.label + '<span onclick="event.stopPropagation();deleteCustomTheme(\'' + id + '\')" style="margin-left:6px;opacity:0.5;cursor:pointer;" title="删除">×</span></div>'
+    ).join('');
+}
+
+function selectTheme(themeId) {
+    currentTheme = themeId;
+    document.querySelectorAll('.theme-chip').forEach(el => el.classList.toggle('active', el.dataset.id === themeId));
+    currentDimensions = {};
+    renderMixPanel();
+    applyTheme(themeId);
+}
+
+async function applyTheme(themeId) {
+    let link = document.getElementById('theme-css');
+    if (!link) { link = document.createElement('link'); link.id = 'theme-css'; link.rel = 'stylesheet'; document.head.appendChild(link); }
+    const customs = await getCustomThemes();
+    if (customs[themeId]) {
+        link.href = '/api/theme-css/' + customs[themeId].baseTheme;
+    } else {
+        link.href = '/api/theme-css/' + themeId;
+    }
+    setStatus('已切换主题: ' + getThemeLabel(themeId));
+}
+
+function getThemeLabel(id) { const t = themesList.find(t => t.id === id); return t ? t.label : id; }
+
+function toggleMixPanel() { document.getElementById('mix-panel').classList.toggle('open'); }
+
+function renderMixPanel() {
+    const grid = document.getElementById('mix-grid');
+    const dims = dimensionsConfig.dimensions || {};
+    let html = '';
+    for (const [dimKey, dim] of Object.entries(dims)) {
+        const selected = currentDimensions[dimKey] || currentTheme;
+        html += '<div class="mix-group"><div class="mix-group-title">' + dim.icon + ' ' + dim.label + '</div><div class="mix-options">';
+        for (const opt of dim.options) {
+            const color = opt.preview || '#ccc';
+            const isActive = opt.theme === selected;
+            const isDark = isColorDark(color);
+            html += '<div class="mix-opt' + (isActive ? ' active' : '') + '" style="background:' + sanitizeColor(color) + ';' + (isDark ? 'border-color:#555;' : '') + '" title="' + opt.label + '" onclick="selectDimension(\'' + dimKey + '\',\'' + opt.theme + '\')"></div>';
+        }
+        html += '</div></div>';
+    }
+    grid.innerHTML = html;
+}
+
+function selectDimension(dimKey, themeId) {
+    currentDimensions[dimKey] = themeId;
+    renderMixPanel();
+    applyMixedTheme();
+}
+
+function applyMixedTheme() {
+    let css = '#wenyan {\n';
+    for (const [dimKey, themeId] of Object.entries(currentDimensions)) {
+        if (themeId === currentTheme) continue;
+        const dim = dimensionsConfig.dimensions[dimKey];
+        if (!dim) continue;
+        const opt = dim.options.find(o => o.theme === themeId);
+        if (!opt) continue;
+        const vals = opt.values;
+        if (dimKey === 'bg') {
+            if (vals['background'] && (vals['background'].indexOf('url(') >= 0 || vals['background'].indexOf('gradient(') >= 0)) {
+                css += '    background-color: ' + sanitizeColor(vals['background-color'] || 'white') + ';\n';
+                css += '    background-image: ' + vals['background'] + ';\n';
+            } else {
+                css += '    background: ' + sanitizeColor(vals['background-color'] || vals['background'] || 'white') + ';\n';
+            }
+        } else {
+            for (const [prop, val] of Object.entries(vals)) {
+                const v = mapPropToVar(dimKey, prop);
+                if (v && val) css += '    ' + v + ': ' + sanitizeColor(val) + ';\n';
+            }
+        }
+    }
+    css += '}';
+    let style = document.getElementById('mix-override');
+    if (!style) { style = document.createElement('style'); style.id = 'mix-override'; document.head.appendChild(style); }
+    style.textContent = css;
+    setStatus('已应用混搭样式');
+}
+
+function mapPropToVar(dimKey, prop) {
+    const m = {
+        'text': {'color':'--wy-text-color','font-size':'--wy-font-size','line-height':'--wy-line-height'},
+        'emphasis': {'strong-color':'--wy-strong-color','em-color':'--wy-em-color'},
+        'headings': {'h1-color':'--wy-h1-color','h1-align':'--wy-h1-align','h1-size':'--wy-h1-size','h2-color':'--wy-h2-color','h2-size':'--wy-h2-size','h3-color':'--wy-h3-color','h3-size':'--wy-h3-size'},
+        'blockquote': {'background':'--wy-bq-bg','border-left':'--wy-bq-border','color':'--wy-bq-color','border-radius':'--wy-bq-radius','font-style':'--wy-bq-font-style'},
+        'code': {'inline-color':'--wy-code-inline-color','inline-bg':'--wy-code-inline-bg','inline-border':'--wy-code-inline-border','block-bg':'--wy-code-block-bg','block-color':'--wy-code-block-color','block-border':'--wy-code-block-border','block-shadow':'--wy-code-block-shadow'},
+        'link': {'color':'--wy-link-color','border-bottom':'--wy-link-border'},
+        'table': {'th-bg':'--wy-table-th-bg','th-color':'--wy-table-th-color','border':'--wy-table-border','stripe-bg':'--wy-table-stripe-bg'},
+        'hr': {'border-top':'--wy-hr-border','box-shadow':'--wy-hr-shadow'},
+        'image': {'border':'--wy-img-border','border-radius':'--wy-img-radius','box-shadow':'--wy-img-shadow'}
+    };
+    return (m[dimKey] || {})[prop] || null;
+}
+
+// ====== 自定义主题 API ======
+async function getCustomThemes() {
+    try { const r = await fetch('/api/custom-themes'); return await r.json(); } catch(e) { return {}; }
+}
+async function saveCustomThemeToServer(id, theme) {
+    await fetch('/api/custom-themes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, theme}) });
+}
+async function deleteCustomThemeFromServer(id) {
+    await fetch('/api/custom-themes/' + id, { method:'DELETE' });
+}
+async function selectCustomTheme(id) {
+    const customs = await getCustomThemes();
+    const t = customs[id];
+    if (!t) return;
+    currentTheme = id;
+    currentDimensions = JSON.parse(JSON.stringify(t.dimensions));
+    document.querySelectorAll('.theme-chip').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.theme-chip[data-id="' + id + '"]').forEach(el => el.classList.add('active'));
+    renderMixPanel();
+    applyMixedTheme();
+    setStatus('已切换自定义主题: ' + t.label);
+}
+async function deleteCustomTheme(id) {
+    await deleteCustomThemeFromServer(id);
+    if (currentTheme === id) selectTheme('default');
+    await renderCustomThemeChips();
+    setStatus('已删除自定义主题');
+}
+async function saveCustomTheme() {
+    const name = prompt('请输入主题名称:');
+    if (!name || !name.trim()) return;
+    const id = 'custom-' + Date.now();
+    const theme = { label: name.trim(), baseTheme: currentTheme, dimensions: JSON.parse(JSON.stringify(currentDimensions)), createdAt: new Date().toISOString() };
+    await saveCustomThemeToServer(id, theme);
+    await renderCustomThemeChips();
+    await selectCustomTheme(id);
+    document.getElementById('custom-theme-status').textContent = '✅ 已保存: ' + name.trim();
+    setTimeout(() => { document.getElementById('custom-theme-status').textContent = ''; }, 3000);
+}
+
+// ====== 编辑器 ======
+function bindEditor() {
+    document.getElementById('editor').addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(convertAndPreview, 300);
+        updateCharCount();
+    });
+}
+async function convertAndPreview() {
+    const md = document.getElementById('editor').value;
+    if (!md.trim()) {
+        document.getElementById('preview-container').innerHTML = '<div class="preview-placeholder">输入 Markdown 后实时预览效果</div>';
+        document.getElementById('copy-btn').disabled = true;
+        document.getElementById('export-btn').disabled = true;
+        currentHtml = '';
+        return;
+    }
+    try {
+        const resp = await fetch('/convert', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({markdown:md}) });
+        const data = await resp.json();
+        if (data.success) {
+            currentHtml = data.html;
+            document.getElementById('preview-container').innerHTML = data.html;
+            document.getElementById('copy-btn').disabled = false;
+            document.getElementById('export-btn').disabled = false;
+            setStatus('转换成功');
+        } else { setStatus('转换失败: ' + data.error, 'error'); }
+    } catch (e) { setStatus('请求失败: ' + e.message, 'error'); }
+}
+function updateCharCount() { document.getElementById('char-count').textContent = document.getElementById('editor').value.length + ' 字'; }
+function loadExample() {
+    document.getElementById('editor').value = '# 文言 Markdown 排版器\n\n> 支持 **一键换肤** 和 **元素混搭** 的排版工具。\n\n## 代码块\n\n```python\ndef hello():\n    print("Hello!")\n```\n\n## 引用块\n\n> 学而不思则罔，思而不学则殆。\n\n## 列表\n\n- 第一项\n- 第二项\n\n## 表格\n\n| 功能 | 状态 |\n|------|------|\n| 一键换肤 | ✅ |\n| 元素混搭 | ✅ |\n\n---\n\n*试试顶部的主题切换和元素混搭！*';
+    convertAndPreview(); updateCharCount();
+}
+function clearEditor() { document.getElementById('editor').value = ''; convertAndPreview(); updateCharCount(); }
+
+// ====== 复制/导出 ======
+async function copyToWeChat() {
+    const md = document.getElementById('editor').value;
+    if (!md.trim()) return;
+    try {
+        const resp = await fetch('/convert-inline', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({markdown:md}) });
+        const data = await resp.json();
+        if (data.success) {
+            const blob = new Blob([data.html], {type:'text/html'});
+            await navigator.clipboard.write([new ClipboardItem({'text/html': blob})]);
+            setStatus('✅ 已复制到剪贴板，打开公众号后台 Ctrl+V', 'success');
+        } else { setStatus('转换失败: ' + data.error, 'error'); }
+    } catch (e) {
+        try { await navigator.clipboard.writeText(currentHtml); setStatus('✅ 已复制 HTML', 'success'); }
+        catch (e2) { setStatus('复制失败', 'error'); }
+    }
+}
+function exportHTML() {
+    if (!currentHtml) return;
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="/static/css/base.css"><link rel="stylesheet" href="/api/theme-css/' + currentTheme + '"></head><body>' + currentHtml + '</body></html>';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+    a.download = 'wenyan-export.html'; a.click();
+    setStatus('✅ 已下载', 'success');
+}
+
+function setStatus(msg, type) { const el = document.getElementById('status'); el.textContent = msg; el.className = 'status' + (type ? ' ' + type : ''); }
+function isColorDark(color) {
+    if (!color || color === 'transparent' || color === 'none') return false;
+    const c = color.match(/#[0-9a-f]{6}/i);
+    if (c) { const h = c[0].slice(1); return (parseInt(h.substr(0,2),16)*0.299 + parseInt(h.substr(2,2),16)*0.587 + parseInt(h.substr(4,2),16)*0.114) < 128; }
+    return false;
+}
+function sanitizeColor(val) { return val ? val.replace(/\/\*.*?\*\//g, '').trim() : 'transparent'; }
+</script>
+</body>
+</html>

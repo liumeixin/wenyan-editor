@@ -1,0 +1,19 @@
+/* 主题: 默认黑白 */
+#wenyan {
+    background-color: white;
+    --wy-text-color: #333;
+    --wy-strong-color: #000000;
+    --wy-h1-color: #000000;
+    --wy-h2-color: #000000;
+    --wy-h3-color: #000000;
+    --wy-bq-bg: #f9f9f9;
+    --wy-bq-border: 4px solid #000;
+    --wy-bq-color: #333;
+    --wy-code-block-bg: #1a1a1a;
+    --wy-code-block-color: #e5e5e5;
+    --wy-code-inline-color: #000000;
+    --wy-link-color: #000;
+    --wy-link-border: 1px solid #000;
+    --wy-table-th-bg: #f9f9f9;
+    --wy-hr-border: 1px solid #000000;
+}

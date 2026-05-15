@@ -1,0 +1,11 @@
+.git
+__pycache__
+*.pyc
+custom_themes.json
+.dockerignore
+Dockerfile
+README.md
+examples/
+themes_config.json
+themes.json
+wechat_styler.py

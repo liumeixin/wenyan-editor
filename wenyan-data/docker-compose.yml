@@ -1,0 +1,13 @@
+services:
+  wenyan:
+    image: ghcr.io/liumeixin/wenyan-data:latest
+    container_name: wenyan
+    restart: unless-stopped
+    ports:
+      - "18080:8080"
+    volumes:
+      # 整个项目目录挂载到容器 /app
+      # 改代码只需 docker restart wenyan，不用重建镜像
+      - ./:/app
+    environment:
+      - TZ=Asia/Shanghai

@@ -1,0 +1,19 @@
+/* 主题: 新年红 */
+#wenyan {
+    background-color: #fffafaf;
+    --wy-text-color: #333;
+    --wy-strong-color: #c62828;
+    --wy-h1-color: #c62828;
+    --wy-h2-color: #c62828;
+    --wy-h3-color: #c62828;
+    --wy-bq-bg: #fff5f5;
+    --wy-bq-border: 4px solid #c62828;
+    --wy-bq-color: #333;
+    --wy-code-block-bg: #2b0a0a;
+    --wy-code-block-color: #ffcdd2;
+    --wy-code-inline-color: #c62828;
+    --wy-link-color: #c62828;
+    --wy-link-border: 1px solid #c62828;
+    --wy-table-th-bg: #fff5f5;
+    --wy-hr-border: 1px solid #c62828;
+}

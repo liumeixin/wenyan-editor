@@ -1,0 +1,19 @@
+/* 主题: Claude 暖橘 */
+#wenyan {
+    background-color: white;
+    --wy-text-color: #333;
+    --wy-strong-color: #111111;
+    --wy-h1-color: #111111;
+    --wy-h2-color: #111111;
+    --wy-h3-color: #111111;
+    --wy-bq-bg: #F3F1EB;
+    --wy-bq-border: 4px solid #111;
+    --wy-bq-color: #333;
+    --wy-code-block-bg: #F3F1EB;
+    --wy-code-block-color: #111;
+    --wy-code-inline-color: #111111;
+    --wy-link-color: #111;
+    --wy-link-border: 1px solid #111;
+    --wy-table-th-bg: #F3F1EB;
+    --wy-hr-border: 1px solid #111111;
+}
