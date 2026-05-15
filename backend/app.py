@@ -17,7 +17,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 BACKEND_DIR = Path(__file__).parent
 FRONTEND_DIR = BACKEND_DIR / '..' / 'frontend'
 THEMES_DIR = BACKEND_DIR / "static" / "css" / "themes"
-CUSTOM_THEMES_FILE = BACKEND_DIR / "custom_themes.json"
+CUSTOM_THEMES_FILE = Path(os.environ.get("DATA_DIR", str(BACKEND_DIR))) / "custom_themes.json"
 
 app = Flask(__name__, template_folder=str(FRONTEND_DIR))
 

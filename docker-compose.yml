@@ -5,3 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "18888:8080"
+    volumes:
+      - ./frontend:/app/frontend:ro
+      - ./backend:/app/backend:ro
+      - ./wenyan-data:/app/data
