@@ -14,10 +14,20 @@
 - `backend/`：Flask API 服务，提供 Markdown 解析、主题 CSS 文件服务
 - 前端通过 `fetch('themes.json')` 等相对路径加载数据，standalone 版本内联了所有数据
 
+### Docker 架构（薄容器 + 卷挂载）
+
+容器是无状态服务层，数据在宿主机：
+- `frontend/` → 只读挂载到 `/app/frontend/`
+- `backend/` → 只读挂载到 `/app/backend/`
+- `wenyan-data/` → 读写挂载到 `/app/data/`（存放 custom_themes.json 等运行时数据）
+
+容器挂了重建，数据不丢。
+
 ### 两种使用模式
 
 1. **standalone.html**（推荐）：双击即用，无后端，所有 CSS 数据内联
-2. **Flask 后端**：`backend/app.py` 提供 `/convert`、`/convert-inline` 等 API，适合需要内联样式输出的场景
+2. **Docker**：`docker compose up -d`，从 `ghcr.io/liumeixin/wenyan-editor:latest` 拉镜像
+3. **Flask 后端**：`backend/app.py` 提供 API，适合需要内联样式输出的场景
 
 ### 构建流水线
 
@@ -65,3 +75,11 @@ standalone.html
 - 更新 app.py 路径引用，模板从 `../frontend` 加载
 - 构建脚本改为相对路径（`Path(__file__).parent`）
 - Dockerfile 移至根目录，同时构建 frontend + backend
+
+### 2026-05-15：Docker 薄容器 + GitHub Actions CI/CD
+
+- Docker 架构改为薄容器 + 卷挂载（frontend/backend 只读，wenyan-data 读写）
+- app.py 新增 DATA_DIR 环境变量，自定义主题从 /app/data/ 读取
+- GitHub Actions 自动构建推送到 GHCR（ghcr.io/liumeixin/wenyan-editor:latest）
+- 踩坑：workflow 的 build context 和 IMAGE_NAME 要跟实际项目结构匹配
+- 竞品分析：doocs/md（12.6k stars）和 flyeric 的 fork，核心痛点是图床和代码高亮
