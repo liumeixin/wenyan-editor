@@ -36,10 +36,12 @@ def _save_custom_themes(themes):
         json.dump(themes, f, ensure_ascii=False, indent=2)
 
 
-# 解除图片加载限制
+# 解除图片加载限制 + 禁止 JSON 缓存（避免 304 导致前端拿到旧数据）
 @app.after_request
 def after_request(response):
     response.headers['Content-Security-Policy'] = "img-src * data: blob:;"
+    if request.path.endswith('.json'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
 
