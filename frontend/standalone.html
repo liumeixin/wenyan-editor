@@ -534,12 +534,14 @@ function copyHtml() {
         const val = m[1].trim();
         // Detect SVG data URI in background-image
         if (prop === 'background-image' && val.includes('data:image/svg+xml')) {
-          const uriMatch = val.match(/url\(["']?(data:image\/svg\+xml,[^"')]+)["']?\)/);
+          const uriMatch = val.match(/url\("data:image\/svg\+xml,([^"]+)"\)/)
+                        || val.match(/url\('data:image\/svg\+xml,([^']+)'\)/)
+                        || val.match(/url\(data:image\/svg\+xml,([^)]+)\)/);
           if (uriMatch) {
             try {
-              svgDataUri = decodeURIComponent(uriMatch[1].slice(19)); // skip "data:image/svg+xml,"
-            } catch(e) {
               svgDataUri = decodeURIComponent(uriMatch[1]);
+            } catch(e) {
+              svgDataUri = uriMatch[1];
             }
           }
           // Don't put SVG background-image in inline style — we'll use inline <svg> instead
