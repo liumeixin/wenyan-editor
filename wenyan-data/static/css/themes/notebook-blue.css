@@ -9,7 +9,11 @@
     line-height: 1.75;
     font-size: 16px;
     color: #333333;
-    background-color: #ffffff;
+    background-color: #fafafa;
+    background-image:
+        linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
     padding: 20px 16px;
     letter-spacing: 0.5px;
 }
@@ -31,7 +35,7 @@
 /* 加粗 */
 #wenyan p strong {
     font-weight: 700;
-    color: #1a1a1a;
+    color: #2B6CB0;
 }
 /* 斜体 */
 #wenyan p em {
@@ -200,8 +204,8 @@
 #wenyan p code,
 #wenyan li code {
     font-family: var(--monospace-font);
-    color: #c7254e;
-    background-color: #f0f0f0;
+    color: #2B6CB0;
+    background-color: #e8f0fe;
     padding: 3px 6px;
     border-radius: 3px;
     font-size: 0.85em;
@@ -213,8 +217,8 @@
     line-height: 1.6;
     margin: 1.5em 0;
     padding: 1em;
-    background-color: #282c34;
-    border: none;
+    background-color: #ffffff;
+    border: 1px solid #576B95;
     overflow-x: auto;
 }
 /* 代码块 */
@@ -225,7 +229,7 @@
     margin: 0;
     padding: 0;
     background-color: transparent;
-    color: #abb2bf;
+    color: #8B4513;
     font-size: 0.85em;
 }
 /* 分割线 */
