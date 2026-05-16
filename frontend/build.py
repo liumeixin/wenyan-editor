@@ -314,6 +314,7 @@ def build():
         "fireworks": "Fireworks 烟花",
         "cli": "CLI 终端",
         "cyber": "Cyber 赛博",
+        "notebook-purple": "笔记紫 Notebook Purple",
     }
 
     # Generate theme CSS map as JS
