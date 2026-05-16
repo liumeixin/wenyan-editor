@@ -522,19 +522,42 @@ function copyHtml() {
   // Extract background-related props from #wenyan CSS block for inline style
   // WeChat strips <style> tags, so backgrounds must be inline to survive paste
   let bgInline = '';
+  let svgDataUri = null;
   const wenyanMatch = themeCss.match(/#wenyan\s*\{([^}]*)\}/);
   if (wenyanMatch) {
     const block = wenyanMatch[1];
-    const bgProps = ['background-image', 'background-size', 'background-color', 'background', 'padding'];
+    const bgProps = ['background-image', 'background-size', 'background-color', 'background', 'background-repeat', 'padding'];
     for (const prop of bgProps) {
       const re = new RegExp(prop + '\\s*:\\s*([^;]+);');
       const m = block.match(re);
-      if (m) bgInline += prop + ':' + m[1].trim() + ';';
+      if (m) {
+        const val = m[1].trim();
+        // Detect SVG data URI in background-image
+        if (prop === 'background-image' && val.includes('data:image/svg+xml')) {
+          const uriMatch = val.match(/url\(["']?(data:image\/svg\+xml,[^"')]+)["']?\)/);
+          if (uriMatch) {
+            try {
+              svgDataUri = decodeURIComponent(uriMatch[1].slice(19)); // skip "data:image/svg+xml,"
+            } catch(e) {
+              svgDataUri = decodeURIComponent(uriMatch[1]);
+            }
+          }
+          // Don't put SVG background-image in inline style — we'll use inline <svg> instead
+          continue;
+        }
+        bgInline += prop + ':' + val + ';';
+      }
     }
   }
 
-  const fullHtml = `<div id="wenyan" style="max-width: 700px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.75; font-size: 16px;${bgInline}">
-<style>${themeCss}</style>
+  // If SVG background detected, create inline <svg> overlay (like xhs.pro)
+  let svgOverlay = '';
+  if (svgDataUri) {
+    svgOverlay = `<span style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">${svgDataUri}</span>`;
+  }
+
+  const fullHtml = `<div id="wenyan" style="position:relative;max-width: 700px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.75; font-size: 16px;${bgInline}">
+${svgOverlay}<style>${themeCss}</style>
 ${html}
 </div>`;
 
