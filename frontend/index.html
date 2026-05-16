@@ -532,7 +532,7 @@ function copyHtml() {
   const wenyanMatch = themeCss.match(/#wenyan\s*\{([^}]*)\}/);
   if (wenyanMatch) {
     const block = wenyanMatch[1];
-    const bgProps = ['background-image', 'background-size', 'background-repeat', 'background-position', 'background-attachment', 'background-color', 'background', 'padding'];
+    const bgProps = ['background', 'background-color', 'background-image', 'background-size', 'background-repeat', 'background-position', 'background-attachment', 'padding'];
     for (const prop of bgProps) {
       const re = new RegExp(prop + '\\s*:\\s*([^;]+);');
       const m = block.match(re);
