@@ -531,8 +531,31 @@ function copyHtml() {
 ${html}
 </div>`;
 
-  navigator.clipboard.writeText(fullHtml).then(() => {
-    const btn = document.getElementById('copyBtn');
+  // Use a temporary div with the rendered HTML, then copy via selection
+  // This ensures the clipboard contains rich HTML (text/html), not plain text
+  const tmp = document.createElement('div');
+  tmp.innerHTML = fullHtml;
+  tmp.style.position = 'fixed';
+  tmp.style.left = '-9999px';
+  tmp.style.top = '0';
+  document.body.appendChild(tmp);
+
+  const range = document.createRange();
+  range.selectNodeContents(tmp);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch (e) { /* ignore */ }
+
+  sel.removeAllRanges();
+  document.body.removeChild(tmp);
+
+  const btn = document.getElementById('copyBtn');
+  if (ok) {
     const orig = btn.innerHTML;
     btn.innerHTML = '✓ 已复制';
     btn.classList.add('active');
@@ -540,15 +563,20 @@ ${html}
       btn.innerHTML = orig;
       btn.classList.remove('active');
     }, 2000);
-  }).catch(() => {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = fullHtml;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  });
+  } else {
+    // Final fallback: Clipboard API with text/html MIME
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const item = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([fullHtml], { type: 'text/plain' }) });
+    navigator.clipboard.write([item]).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✓ 已复制';
+      btn.classList.add('active');
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.classList.remove('active');
+      }, 2000);
+    });
+  }
 }
 
 function buildMixedCss() {
