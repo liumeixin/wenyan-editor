@@ -315,6 +315,7 @@ def build():
         "cli": "CLI 终端",
         "cyber": "Cyber 赛博",
         "notebook-purple": "笔记紫 Notebook Purple",
+        "notebook-blue": "笔记蓝 Notebook Blue",
     }
 
     # Generate theme CSS map as JS
