@@ -526,13 +526,13 @@ function copyHtml() {
     : buildMixedCss();
 
   // Extract background-related props from #wenyan CSS block for inline style
-  // WeChat strips <style> tags and ignores background-image (linear-gradient/SVG)
-  // so only background-color survives — use that for the inline style
+  // WeChat supports background-image with linear-gradient in inline styles
+  // when copied via ClipboardItem (text/html), same as xhs.pro
   let bgInline = '';
   const wenyanMatch = themeCss.match(/#wenyan\s*\{([^}]*)\}/);
   if (wenyanMatch) {
     const block = wenyanMatch[1];
-    const bgProps = ['background-color', 'padding'];
+    const bgProps = ['background-image', 'background-size', 'background-repeat', 'background-color', 'padding'];
     for (const prop of bgProps) {
       const re = new RegExp(prop + '\\s*:\\s*([^;]+);');
       const m = block.match(re);
@@ -540,36 +540,16 @@ function copyHtml() {
     }
   }
 
-  const fullHtml = `<div id="wenyan" style="max-width: 700px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.75; font-size: 16px;${bgInline}">
-<style>${themeCss}</style>
+  const fullHtml = `<section style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.75; font-size: 16px;${bgInline}">
 ${html}
-</div>`;
+</section>`;
 
-  // Use a temporary div with the rendered HTML, then copy via selection
-  // This ensures the clipboard contains rich HTML (text/html), not plain text
-  const tmp = document.createElement('div');
-  tmp.innerHTML = fullHtml;
-  tmp.style.position = 'fixed';
-  tmp.style.left = '-9999px';
-  tmp.style.top = '0';
-  document.body.appendChild(tmp);
-
-  const range = document.createRange();
-  range.selectNodeContents(tmp);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch (e) { /* ignore */ }
-
-  sel.removeAllRanges();
-  document.body.removeChild(tmp);
-
-  const btn = document.getElementById('copyBtn');
-  if (ok) {
+  // Use ClipboardItem with text/html (like xhs.pro)
+  // This preserves background-image: linear-gradient in WeChat paste
+  const blob = new Blob([fullHtml], { type: 'text/html' });
+  const item = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([fullHtml], { type: 'text/plain' }) });
+  navigator.clipboard.write([item]).then(() => {
+    const btn = document.getElementById('copyBtn');
     const orig = btn.innerHTML;
     btn.innerHTML = '✓ 已复制';
     btn.classList.add('active');
@@ -577,20 +557,31 @@ ${html}
       btn.innerHTML = orig;
       btn.classList.remove('active');
     }, 2000);
-  } else {
-    // Final fallback: Clipboard API with text/html MIME
-    const blob = new Blob([fullHtml], { type: 'text/html' });
-    const item = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([fullHtml], { type: 'text/plain' }) });
-    navigator.clipboard.write([item]).then(() => {
+  }).catch(() => {
+    // Fallback: selection + execCommand
+    const tmp = document.createElement('div');
+    tmp.innerHTML = fullHtml;
+    tmp.style.position = 'fixed';
+    tmp.style.left = '-9999px';
+    tmp.style.top = '0';
+    document.body.appendChild(tmp);
+    const range = document.createRange();
+    range.selectNodeContents(tmp);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch(e) {}
+    sel.removeAllRanges();
+    document.body.removeChild(tmp);
+    const btn = document.getElementById('copyBtn');
+    if (ok) {
       const orig = btn.innerHTML;
       btn.innerHTML = '✓ 已复制';
       btn.classList.add('active');
-      setTimeout(() => {
-        btn.innerHTML = orig;
-        btn.classList.remove('active');
-      }, 2000);
-    });
-  }
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('active'); }, 2000);
+    }
+  });
 }
 
 function buildMixedCss() {
