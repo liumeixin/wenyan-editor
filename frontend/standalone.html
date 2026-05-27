@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>文颜风格 Markdown 编辑器</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 /* ========== RESET & BASE ========== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -117,12 +119,64 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Sego
   max-width: 700px; margin: 0 auto;
 }
 /* Toggle button */
-.phone-toggle {
+.phone-toggle, .xhs-toggle {
   padding: 3px 8px; border: 1px solid #ddd; border-radius: 4px;
   background: #fff; color: #666; font-size: 11px; cursor: pointer;
 }
-.phone-toggle:hover { background: #f0f0f0; }
-.phone-toggle.active { background: #333; color: #fff; border-color: #333; }
+.phone-toggle:hover, .xhs-toggle:hover { background: #f0f0f0; }
+.phone-toggle.active, .xhs-toggle.active { background: #333; color: #fff; border-color: #333; }
+
+/* ========== XHS PREVIEW MODE ========== */
+#preview-scroll.xhs-mode {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 16px !important; background: #f0f0f0 !important;
+  align-content: flex-start; overflow-y: auto;
+}
+.xhs-toolbar {
+  display: none; align-items: center; gap: 8px;
+  padding: 6px 12px; background: #f5f5f5;
+  border-bottom: 1px solid var(--ui-border); flex-shrink: 0;
+}
+.xhs-toolbar.visible { display: flex; }
+.xhs-toolbar select, .xhs-toolbar button {
+  padding: 4px 10px; border: 1px solid #ddd; border-radius: 4px;
+  font-size: 12px; background: #fff; cursor: pointer; white-space: nowrap;
+}
+.xhs-toolbar button:hover { background: #e8f0fe; }
+.xhs-toolbar .xhs-page-count { font-size: 12px; color: #999; }
+.xhs-page-card {
+  position: relative; width: 270px; flex-shrink: 0;
+  border-radius: 8px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12); background: #fff;
+}
+.xhs-page-frame {
+  width: 270px; height: 360px; overflow: hidden; position: relative; background: #fff;
+}
+.xhs-page-content {
+  position: absolute; top: 0; left: 0;
+  width: 1080px; height: 1440px;
+  transform: scale(0.25); transform-origin: top left;
+  background: #fff; overflow: hidden;
+}
+.xhs-page-content #wenyan { max-width: 100% !important; margin: 0 !important; }
+.xhs-page-content img { max-width: 100% !important; height: auto !important; display: block !important; }
+.xhs-page-content pre { white-space: pre-wrap !important; word-break: break-all !important; }
+.xhs-page-content table { width: 100% !important; table-layout: fixed !important; word-break: break-all !important; }
+.xhs-page-info {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; font-size: 12px; color: #666;
+}
+.xhs-page-info .xhs-page-num { font-weight: 600; }
+.xhs-page-info .xhs-dl-btn {
+  padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px;
+  background: #fff; font-size: 11px; cursor: pointer;
+}
+.xhs-page-info .xhs-dl-btn:hover { background: #e8f0fe; }
+.xhs-page-info .xhs-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.xhs-empty {
+  width: 100%; text-align: center; padding: 60px 20px;
+  color: #999; font-size: 14px;
+}
 
 #preview-scroll {
   flex: 1; overflow-y: auto; padding: 20px 24px; background: #fff;
@@ -223,7 +277,17 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Sego
       <div class="preview-header">
         <span>预览</span>
         <button class="phone-toggle" onclick="togglePhonePreview()" title="手机预览 375px">📱 手机</button>
+        <button class="xhs-toggle" onclick="toggleXhsMode()" title="小红书排版 1080×1440">📷 小红书</button>
         <span id="charCount">0 字</span>
+      </div>
+      <div id="xhsToolbar" class="xhs-toolbar">
+        <span style="font-weight:600;font-size:12px;">小红书排版</span>
+        <select id="xhsRatio" onchange="updateXhsPreview()">
+          <option value="3:4">3:4 (1080×1440)</option>
+        </select>
+        <span id="xhsPageCount" class="xhs-page-count"></span>
+        <div style="flex:1"></div>
+        <button onclick="downloadAllXhsPages()" title="打包下载全部页面">📦 下载全部 ZIP</button>
       </div>
       <div id="preview-scroll">
         <div id="wenyan"></div>
@@ -3291,7 +3355,7 @@ const THEMES = {"claude": "/**
     background-image: 
         linear-gradient(90deg, rgba(200, 230, 245, 0.3) 1px, transparent 0),
         linear-gradient(rgba(200, 230, 245, 0.3) 1px, transparent 0);
-    background-size: 20px 20px; /* 方格大小 */
+    background-size: 40px 40px; /* 方格大小 */
     padding: 20px;
 }
 
@@ -5885,7 +5949,7 @@ const DIM_CSS = {"background": {"cli": "#wenyan {
     background-image: 
         linear-gradient(90deg, rgba(200, 230, 245, 0.3) 1px, transparent 0),
         linear-gradient(rgba(200, 230, 245, 0.3) 1px, transparent 0);
-    background-size: 20px 20px; 
+    background-size: 40px 40px; 
     padding: 20px;
 }", "newyear": "#wenyan {
   font-family: var(--sans-serif-font);
@@ -6098,7 +6162,7 @@ const DIM_CSS = {"background": {"cli": "#wenyan {
     background-image: 
         linear-gradient(90deg, rgba(200, 230, 245, 0.3) 1px, transparent 0),
         linear-gradient(rgba(200, 230, 245, 0.3) 1px, transparent 0);
-    background-size: 20px 20px; 
+    background-size: 40px 40px; 
     padding: 20px;
 }", "newyear": "#wenyan {
   font-family: var(--sans-serif-font);
@@ -10689,6 +10753,9 @@ function applyTheme(themeName) {
   } else if (state.mode === 'mix') {
     applyMixedTheme();
   }
+
+  // Update XHS preview if active
+  if (typeof xhsMode !== 'undefined' && xhsMode) generateXhsPages();
 }
 
 function applyMixedTheme() {
@@ -10840,11 +10907,15 @@ function renderMarkdown() {
   }
 
   // Render
-  preview.innerHTML = marked.parse(md);
+  const htmlContent = normalizeImageUrls(marked.parse(md));
+  preview.innerHTML = htmlContent;
 
   // Update char count
   const count = text.replace(/\s/g, '').length;
   document.getElementById('charCount').textContent = count + ' 字';
+
+  // Update XHS preview if active
+  if (typeof xhsMode !== 'undefined' && xhsMode) generateXhsPages();
 }
 
 
@@ -10892,6 +10963,518 @@ function togglePhonePreview() {
   }
 
   applyTheme(state.currentTheme);
+}
+
+// ========== XHS PREVIEW MODE ==========
+let xhsMode = false;
+let xhsPages = []; // Array of HTML strings, one per page
+
+const XHS_DIMENSIONS = {
+  '3:4': { width: 1080, height: 1440 },
+};
+
+function getXhsScaleCss(pageWidth) {
+  const s = pageWidth / 360; // 3.0 for 1080px — optimized for mobile phone viewing
+  return `
+    :where(#wenyan) { font-size: ${Math.round(16*s)}px !important; line-height: 1.65 !important; }
+    :where(#wenyan) h1 { font-size: ${Math.round(28*s)}px !important; font-weight: 700 !important; }
+    :where(#wenyan) h2 { font-size: ${Math.round(22*s)}px !important; font-weight: 700 !important; }
+    :where(#wenyan) h3 { font-size: ${Math.round(18*s)}px !important; font-weight: 600 !important; }
+    :where(#wenyan) p { margin: ${Math.round(12*s)}px 0 !important; }
+    :where(#wenyan) img { width: 100% !important; height: auto !important; }
+    :where(#wenyan) pre { font-size: ${Math.round(14*s)}px !important; padding: ${Math.round(12*s)}px !important; }
+    :where(#wenyan) blockquote { padding: ${Math.round(8*s)}px ${Math.round(12*s)}px !important; border-left: ${Math.round(4*s)}px solid !important; margin: ${Math.round(16*s)}px 0 !important; }
+    :where(#wenyan) ul, :where(#wenyan) ol { margin: ${Math.round(12*s)}px 0 !important; padding-left: ${Math.round(24*s)}px !important; }
+    :where(#wenyan) li { margin: ${Math.round(8*s)}px 0 !important; }
+    :where(#wenyan) table { font-size: ${Math.round(14*s)}px !important; }
+    :where(#wenyan) th, :where(#wenyan) td { padding: ${Math.round(10*s)}px !important; }
+  `;
+}
+
+
+
+function xhsDoubleBgSize(container) {
+  // Double the background tile size for mobile comfort
+  const cs = getComputedStyle(container);
+  const bgImage = cs.backgroundImage;
+  if (!bgImage || bgImage === 'none') return;
+
+  const bgSize = cs.backgroundSize;
+  if (bgSize && bgSize !== 'auto' && bgSize !== 'initial') {
+    // Parse explicit background-size and double pixel values
+    const newParts = bgSize.split(/\s+/).map(p => {
+      if (p.endsWith('px')) return (parseFloat(p) * 2) + 'px';
+      if (p.endsWith('%')) return Math.min(parseFloat(p) * 2, 400) + '%';
+      return p;
+    });
+    container.style.backgroundSize = newParts.join(' ');
+  } else {
+    // No explicit size — SVG intrinsic. Detect from data URL dimensions.
+    const match = bgImage.match(/width='(\d+)'\s+height='(\d+)'/);
+    if (match) {
+      const w = parseInt(match[1]) * 2;
+      const h = parseInt(match[2]) * 2;
+      container.style.backgroundSize = w + 'px ' + h + 'px';
+    }
+  }
+}
+
+/* --- UI Controls --- */
+
+function toggleXhsMode() {
+  if (phoneMode) togglePhonePreview();
+  xhsMode = !xhsMode;
+  const scroll = document.getElementById('preview-scroll');
+  const btn = document.querySelector('.xhs-toggle');
+  const toolbar = document.getElementById('xhsToolbar');
+
+  if (xhsMode) {
+    btn.classList.add('active');
+    toolbar.classList.add('visible');
+    scroll.classList.add('xhs-mode');
+    generateXhsPages();
+  } else {
+    btn.classList.remove('active');
+    toolbar.classList.remove('visible');
+    scroll.classList.remove('xhs-mode');
+    scroll.innerHTML = '<div id="wenyan"></div>';
+    renderMarkdown();
+  }
+}
+
+function getXhsDimensions() {
+  const ratio = document.getElementById('xhsRatio').value;
+  return XHS_DIMENSIONS[ratio] || XHS_DIMENSIONS['3:4'];
+}
+
+function normalizeImageUrls(html) {
+  let result = html.replace(
+    /src="([^"]*?\.(?:png|jpg|jpeg|gif|bmp|svg|webp|tiff|ico))![^"]*?"/gi,
+    'src="$1"'
+  );
+  result = result.replace(
+    /src="(https?:\/\/[^"]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg))"/gi,
+    (match, url) => `src="/api/proxy-image?url=${encodeURIComponent(url)}"`
+  );
+  return result;
+}
+
+function updateXhsPreview() {
+  if (xhsMode) generateXhsPages();
+}
+
+/* --- Main Generator --- */
+
+async function generateXhsPages() {
+  const scroll = document.getElementById('preview-scroll');
+  const editor = document.getElementById('editor');
+  const md = editor.value;
+
+  // Parse markdown → HTML
+  let cleanMd = md;
+  const fmMatch = md.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (fmMatch) cleanMd = fmMatch[2];
+  const htmlContent = normalizeImageUrls(marked.parse(cleanMd));
+
+  // Theme CSS
+  const themeCss = state.mode === 'whole'
+    ? (THEMES[state.currentTheme] || '')
+    : buildMixedCss();
+
+  const dims = getXhsDimensions();
+  const { width, height } = dims;
+
+  // Split into pages
+  xhsPages = await splitContentIntoPages(htmlContent, themeCss, width, height);
+
+  // Render preview cards
+  scroll.innerHTML = '';
+
+  if (xhsPages.length === 0) {
+    scroll.innerHTML = '<div class="xhs-empty">没有内容可排版</div>';
+    document.getElementById('xhsPageCount').textContent = '';
+    return;
+  }
+
+  const scale = 270 / width; // Preview scale: 1080 → 270
+
+  xhsPages.forEach((pageHtml, i) => {
+    const card = document.createElement('div');
+    card.className = 'xhs-page-card';
+
+    const frame = document.createElement('div');
+    frame.className = 'xhs-page-frame';
+
+    const content = document.createElement('div');
+    content.className = 'xhs-page-content';
+    content.style.width = width + 'px';
+    content.style.height = height + 'px';
+    content.style.transform = `scale(${scale})`;
+    content.style.transformOrigin = 'top left';
+    content.style.overflow = 'hidden';
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = themeCss + getXhsScaleCss(width);
+    content.appendChild(styleEl);
+
+    const padding = Math.round(width * 0.055);
+    const wenyanDiv = document.createElement('div');
+    wenyanDiv.id = 'wenyan';
+    wenyanDiv.style.cssText = `max-width:${width}px;margin:0 auto;padding:${padding}px;box-sizing:border-box;`;
+    wenyanDiv.innerHTML = pageHtml;
+    content.appendChild(wenyanDiv);
+
+    // Double background grid spacing for mobile comfort
+    requestAnimationFrame(() => xhsDoubleBgSize(wenyanDiv));
+
+    frame.appendChild(content);
+    card.appendChild(frame);
+
+    const info = document.createElement('div');
+    info.className = 'xhs-page-info';
+    info.innerHTML = `
+      <span class="xhs-page-num">第 ${i + 1} / ${xhsPages.length} 页</span>
+      <button class="xhs-dl-btn" onclick="downloadXhsPage(${i})" title="下载此页 PNG">💾 下载</button>
+    `;
+    card.appendChild(info);
+    scroll.appendChild(card);
+  });
+
+  document.getElementById('xhsPageCount').textContent =
+    `${xhsPages.length} 页 · ${width}×${height}`;
+}
+
+/* --- Page Splitting (core algorithm) --- */
+
+async function splitContentIntoPages(htmlContent, themeCss, pageWidth, pageHeight) {
+  const PADDING = Math.round(pageWidth * 0.055);
+  const USABLE_H = pageHeight - PADDING * 2;
+
+  // Create hidden measurement container at FULL design width
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `position:absolute;left:-9999px;top:0;width:${pageWidth}px;visibility:hidden;pointer-events:none;z-index:-1;`;
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = themeCss + getXhsScaleCss(pageWidth) + `
+    #wenyan img { max-width:100% !important; height:auto !important; display:block !important; }
+    #wenyan pre { white-space:pre-wrap !important; word-break:break-all !important; }
+    #wenyan table { width:100% !important; table-layout:fixed !important; word-break:break-all !important; }
+  `;
+  wrapper.appendChild(styleEl);
+
+  const measureDiv = document.createElement('div');
+  measureDiv.id = 'xhs-m';
+  // Wrap in #wenyan so theme CSS + scaleCss selectors target it correctly
+  measureDiv.innerHTML = `<div id="wenyan" style="max-width:${pageWidth}px;margin:0 auto;padding:${PADDING}px;box-sizing:border-box;">${htmlContent}</div>`;
+  wrapper.appendChild(measureDiv);
+  document.body.appendChild(wrapper);
+
+  const wenyanInner = measureDiv.querySelector('#wenyan');
+
+  // Wait for ALL images to load
+  const imgs = wenyanInner.querySelectorAll('img');
+  await Promise.all(Array.from(imgs).map(img => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise(r => { img.onload = r; img.onerror = r; setTimeout(r, 5000); });
+  }));
+
+  const blocks = Array.from(wenyanInner.children);
+  const pages = smartSplit(blocks, pageWidth, USABLE_H, PADDING, wenyanInner);
+
+  document.body.removeChild(wrapper);
+  return pages;
+}
+
+/**
+ * Smart splitting algorithm:
+ * - Images that don't fit: scale to fit remaining space, or push to next page
+ * - Text blocks that don't fit: push to next page, or split if page is empty
+ * - Other blocks that don't fit: push to next page
+ */
+/**
+ * Smart splitting — uses scrollHeight for accurate margin-collapsed measurement.
+ * - Images: scale to fit, or push to next page
+ * - Text: push to next page, or split if on empty page
+ */
+function smartSplit(blocks, pageWidth, usableH, padding, measureEl) {
+  const pages = [];
+  let pageHtml = []; // HTML strings for current page
+
+  // Create a test element for measuring cumulative page height
+  // Must match #wenyan styling exactly (same max-width, padding, box-sizing)
+  const testEl = document.createElement('div');
+  testEl.id = 'wenyan'; // Must match #wenyan so theme CSS + scaleCss apply correctly
+  testEl.style.cssText = `position:absolute;left:-9999px;top:0;width:${pageWidth}px;visibility:hidden;pointer-events:none;max-width:${pageWidth}px;margin:0 auto;padding:${padding}px;box-sizing:border-box;`;
+  measureEl.parentNode.appendChild(testEl);
+
+  const PAGE_H = usableH + padding * 2; // = pageHeight (e.g. 1440)
+
+  function measurePage() {
+    testEl.innerHTML = pageHtml.join('\n');
+    return testEl.scrollHeight;
+  }
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const blockHtml = block.outerHTML;
+
+    // Try adding this block to current page
+    pageHtml.push(blockHtml);
+    const h = measurePage();
+
+    if (h <= PAGE_H) {
+      // Fits — keep it
+      continue;
+    }
+
+    // Doesn't fit — remove and handle
+    pageHtml.pop();
+
+    if (pageHtml.length === 0) {
+      // Empty page — this oversized block must go here somehow
+      if (isImageBlock(block)) {
+        pageHtml.push(scaleBlockToFit(block, usableH, pageWidth, padding));
+      } else {
+        const parts = splitBlock(block, usableH, pageWidth, padding, measureEl);
+        if (parts) {
+          pageHtml.push(parts[0]);
+          pages.push(pageHtml.join('\n'));
+          pageHtml = [parts[1]];
+        } else {
+          // Can't split — show as-is (clipped by overflow:hidden)
+          pageHtml.push(blockHtml);
+        }
+      }
+    } else {
+      // Page has content — start new page
+      pages.push(pageHtml.join('\n'));
+      pageHtml = [blockHtml];
+    }
+  }
+
+  testEl.parentNode.removeChild(testEl);
+
+  if (pageHtml.length > 0) {
+    pages.push(pageHtml.join('\n'));
+  }
+
+  return pages;
+}
+
+/* --- Image Handling --- */
+
+function isImageBlock(block) {
+  const tag = block.tagName.toLowerCase();
+  if (tag === 'img') return true;
+  // <p><img></p> or <div><img></div>
+  if ((tag === 'p' || tag === 'div') && block.querySelector('img')) {
+    // Only if the block is mostly the image (no significant text)
+    const textOnly = block.textContent.replace(/\s/g, '');
+    return textOnly.length < 10;
+  }
+  return false;
+}
+
+function scaleBlockToFit(block, maxH, pageWidth, padding) {
+  const clone = block.cloneNode(true);
+  const img = clone.tagName === 'img' ? clone : clone.querySelector('img');
+  if (!img) return block.outerHTML;
+
+  const natW = img.naturalWidth || parseInt(img.getAttribute('width')) || pageWidth;
+  const natH = img.naturalHeight || parseInt(img.getAttribute('height')) || maxH;
+
+  const availW = pageWidth - padding * 2;
+  const scaleW = availW / natW;
+  const scaleH = maxH / natH;
+  const s = Math.min(scaleW, scaleH, 1); // Never scale up
+
+  const newW = Math.round(natW * s);
+  const newH = Math.round(natH * s);
+
+  img.style.setProperty('width', newW + 'px', 'important');
+  img.style.setProperty('height', newH + 'px', 'important');
+  img.style.setProperty('maxWidth', 'none', 'important');
+
+  if (clone.tagName !== 'img') {
+    clone.style.setProperty('height', newH + 'px', 'important');
+    clone.style.setProperty('textAlign', 'center', 'important');
+  }
+
+  return clone.outerHTML;
+}
+
+/* --- Text Splitting --- */
+
+function splitBlock(block, maxH, pageWidth, padding, measureEl) {
+  // Step 1: Try splitting at child node boundaries
+  // Walk children from the end, removing one at a time, until height fits
+  const origChildren = Array.from(block.childNodes);
+
+  if (origChildren.length > 1) {
+    for (let splitAt = origChildren.length - 1; splitAt > 0; splitAt--) {
+      const testBlock = block.cloneNode(true);
+      while (testBlock.childNodes.length > splitAt) {
+        testBlock.removeChild(testBlock.lastChild);
+      }
+
+      const testWrap = document.createElement('div');
+      testWrap.appendChild(testBlock);
+      measureEl.appendChild(testWrap);
+      const h = testWrap.offsetHeight;
+      measureEl.removeChild(testWrap);
+
+      if (h <= maxH) {
+        // Found a good split point
+        const part1 = block.cloneNode(true);
+        while (part1.childNodes.length > splitAt) {
+          part1.removeChild(part1.lastChild);
+        }
+
+        const part2 = block.cloneNode(true);
+        for (let j = 0; j < splitAt; j++) {
+          part2.removeChild(part2.firstChild);
+        }
+
+        if (part1.textContent.trim() && part2.textContent.trim()) {
+          return [part1.outerHTML, part2.outerHTML];
+        }
+      }
+    }
+  }
+
+  // Step 2: Single text node — binary search on text length
+  if (origChildren.length === 1 && origChildren[0].nodeType === Node.TEXT_NODE) {
+    const text = origChildren[0].nodeValue;
+    if (text.length <= 10) return null;
+
+    let lo = 0, hi = text.length;
+    let bestLen = 0;
+
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const testBlock = block.cloneNode(true);
+      testBlock.textContent = text.substring(0, mid);
+
+      const testWrap = document.createElement('div');
+      testWrap.appendChild(testBlock);
+      measureEl.appendChild(testWrap);
+      const h = testWrap.offsetHeight;
+      measureEl.removeChild(testWrap);
+
+      if (h <= maxH) {
+        bestLen = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    if (bestLen > 0 && bestLen < text.length) {
+      // Find a natural break point near the split
+      let breakAt = bestLen;
+      const search = Math.min(30, bestLen);
+      for (let j = bestLen; j > bestLen - search; j--) {
+        if (' ，。！？、；：\n'.includes(text[j])) {
+          breakAt = j + 1;
+          break;
+        }
+      }
+
+      const tag = block.tagName.toLowerCase();
+      const attrs = Array.from(block.attributes).map(a => `${a.name}="${a.value}"`).join(' ');
+      return [
+        `<${tag}${attrs ? ' ' + attrs : ''}>${xhsEscHtml(text.substring(0, breakAt))}</${tag}>`,
+        `<${tag}${attrs ? ' ' + attrs : ''}>${xhsEscHtml(text.substring(breakAt))}</${tag}>`
+      ];
+    }
+  }
+
+  return null;
+}
+
+function xhsEscHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* --- Download --- */
+
+async function downloadXhsPage(pageIndex) {
+  const dims = getXhsDimensions();
+  const scroll = document.getElementById('preview-scroll');
+  const cards = scroll.querySelectorAll('.xhs-page-card');
+  if (!cards[pageIndex]) return;
+
+  const btn = cards[pageIndex].querySelector('.xhs-dl-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+
+  try {
+    const contentEl = cards[pageIndex].querySelector('.xhs-page-content');
+    const dataUrl = await htmlToImage.toPng(contentEl, {
+      width: dims.width,
+      height: dims.height,
+      pixelRatio: 1,
+      cacheBust: true,
+      skipAutoScale: true,
+      style: { transform: 'none', transformOrigin: 'top left' },
+    });
+
+    const link = document.createElement('a');
+    link.download = `xhs-page-${pageIndex + 1}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (e) {
+    console.error('XHS download error:', e);
+    alert('下载失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 下载';
+  }
+}
+
+async function downloadAllXhsPages() {
+  if (xhsPages.length === 0) return;
+
+  const dims = getXhsDimensions();
+  const scroll = document.getElementById('preview-scroll');
+  const cards = scroll.querySelectorAll('.xhs-page-card');
+
+  const dlBtn = scroll.closest('.preview-pane').querySelector('.xhs-toolbar button:last-child');
+  const origText = dlBtn.textContent;
+  dlBtn.disabled = true;
+  dlBtn.textContent = '⏳ 生成中...';
+
+  try {
+    const zip = new JSZip();
+    for (let i = 0; i < cards.length; i++) {
+      dlBtn.textContent = `⏳ ${i + 1}/${cards.length}...`;
+      const contentEl = cards[i].querySelector('.xhs-page-content');
+      const dataUrl = await htmlToImage.toPng(contentEl, {
+        width: dims.width,
+        height: dims.height,
+        pixelRatio: 1,
+        cacheBust: true,
+        skipAutoScale: true,
+        style: { transform: 'none', transformOrigin: 'top left' },
+      });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      zip.file(`xhs-page-${i + 1}.png`, blob);
+    }
+    dlBtn.textContent = '📦 打包中...';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.download = `xhs-pages-${Date.now()}.zip`;
+    link.href = URL.createObjectURL(zipBlob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch (e) {
+    console.error('XHS batch download error:', e);
+    alert('批量下载失败: ' + e.message);
+  } finally {
+    dlBtn.disabled = false;
+    dlBtn.textContent = origText;
+  }
 }
 
 // ========== TOOLBAR ACTIONS ==========

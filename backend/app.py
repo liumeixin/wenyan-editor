@@ -10,6 +10,9 @@
 
 import os
 import json
+import uuid
+import tempfile
+import shutil
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 
@@ -143,6 +146,35 @@ def api_delete_custom_theme(theme_id):
         del themes[theme_id]
         _save_custom_themes(themes)
     return jsonify({'success': True})
+
+
+@app.route('/api/proxy-image')
+def proxy_image():
+    """图片代理 - 解决 OSS CORS 问题"""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'success': False, 'error': '缺少 url 参数'}), 400
+    
+    # 验证 URL 是图片
+    if not any(url.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp']):
+        return jsonify({'success': False, 'error': '无效的图片 URL'}), 400
+    
+    try:
+        import urllib.request
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = response.read()
+            content_type = response.headers.get('Content-Type', 'image/png')
+        
+        # 保存到临时文件
+        suffix = Path(url).suffix or '.png'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(data)
+            tmp_path = tmp.name
+        
+        return send_file(tmp_path, mimetype=content_type, as_attachment=False)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/<path:filename>')

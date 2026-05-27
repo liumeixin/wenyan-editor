@@ -2,7 +2,7 @@
 #wenyan {
     /* 背景 */
     background-color: white;
-    background-image: #050510 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='%23050510'/%3E%3Cpath d='M0 58 L60 58' stroke='%23ff00ea' stroke-width='0.5' opacity='0.2'/%3E%3Cpath d='M58 0 L58 60' stroke='%2300f3ff' stroke-width='0.5' opacity='0.2'/%3E%3C/svg%3E");
+    background-image: #050510 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23050510'/%3E%3Cpath d='M0 118 L120 118' stroke='%23ff00ea' stroke-width='0.5' opacity='0.2'/%3E%3Cpath d='M118 0 L118 120' stroke='%2300f3ff' stroke-width='0.5' opacity='0.2'/%3E%3C/svg%3E");
     padding: 15px;
     
     /* 正文 */
