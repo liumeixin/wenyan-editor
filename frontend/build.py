@@ -7,7 +7,7 @@ import re
 import json
 from pathlib import Path
 
-CSS_DIR = Path("/opt/data/cache/documents/xhs-css-extract")
+CSS_DIR = Path(os.environ.get("WENYAN_CSS_DIR", "/opt/data/cache/documents/xhs-css-extract"))
 OUTPUT = Path(__file__).parent
 
 # Dimension → selector patterns (regex matching)
