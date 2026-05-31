@@ -5967,7 +5967,11 @@ const DIM_CSS = {"background": {"cli": "#wenyan {
     line-height: 1.75;
     font-size: 16px;
     color: #333333;
-    background-color: #ffffff;
+    background-color: #fafafa;
+    background-image:
+        linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
     padding: 20px 16px;
     letter-spacing: 0.5px;
 }", "notebook-purple": "#wenyan {
@@ -6180,7 +6184,11 @@ const DIM_CSS = {"background": {"cli": "#wenyan {
     line-height: 1.75;
     font-size: 16px;
     color: #333333;
-    background-color: #ffffff;
+    background-color: #fafafa;
+    background-image:
+        linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
     padding: 20px 16px;
     letter-spacing: 0.5px;
 }", "notebook-purple": "#wenyan {
@@ -10906,8 +10914,22 @@ function renderMarkdown() {
     md = fmMatch[2];
   }
 
+  // Preserve extra blank lines: 3+ consecutive \n → paragraph break + markers
+  const EL = '%EL%';
+  const processedMd = md.replace(/\n{3,}/g, (m) => {
+    const extraLines = m.length - 2;
+    return '\n\n' + (EL + '\n\n').repeat(extraLines);
+  });
+
   // Render
-  const htmlContent = normalizeImageUrls(marked.parse(md));
+  let htmlContent = normalizeImageUrls(marked.parse(processedMd));
+
+  // Restore empty lines: <p>%EL%</p> → empty paragraph
+  htmlContent = htmlContent.replace(
+    /<p[^>]*>\s*%EL%\s*<\/p>/gi,
+    '<p style="margin:0;padding:0;height:1.2em;">&nbsp;</p>'
+  );
+
   preview.innerHTML = htmlContent;
 
   // Update char count
@@ -10974,20 +10996,22 @@ const XHS_DIMENSIONS = {
 };
 
 function getXhsScaleCss(pageWidth) {
-  const s = pageWidth / 360; // 3.0 for 1080px — optimized for mobile phone viewing
+  const s = pageWidth / 432; // 2.5 for 1080px — comfortable mobile reading
   return `
     :where(#wenyan) { font-size: ${Math.round(16*s)}px !important; line-height: 1.65 !important; }
-    :where(#wenyan) h1 { font-size: ${Math.round(28*s)}px !important; font-weight: 700 !important; }
+    :where(#wenyan) h1 { font-size: ${Math.round(28*s)}px !important; font-weight: 700 !important; margin-top: ${Math.round(10*s)}px !important; margin-bottom: ${Math.round(8*s)}px !important; }
     :where(#wenyan) h2 { font-size: ${Math.round(22*s)}px !important; font-weight: 700 !important; }
     :where(#wenyan) h3 { font-size: ${Math.round(18*s)}px !important; font-weight: 600 !important; }
     :where(#wenyan) p { margin: ${Math.round(12*s)}px 0 !important; }
-    :where(#wenyan) img { width: 100% !important; height: auto !important; }
-    :where(#wenyan) pre { font-size: ${Math.round(14*s)}px !important; padding: ${Math.round(12*s)}px !important; }
+    :where(#wenyan) img { width: 100% !important; height: auto !important; margin: ${Math.round(8*s)}px auto !important; }
+    :where(#wenyan) pre { font-size: ${Math.round(14*s)}px !important; padding: ${Math.round(12*s)}px !important; margin: ${Math.round(8*s)}px 0 !important; }
     :where(#wenyan) blockquote { padding: ${Math.round(8*s)}px ${Math.round(12*s)}px !important; border-left: ${Math.round(4*s)}px solid !important; margin: ${Math.round(16*s)}px 0 !important; }
     :where(#wenyan) ul, :where(#wenyan) ol { margin: ${Math.round(12*s)}px 0 !important; padding-left: ${Math.round(24*s)}px !important; }
     :where(#wenyan) li { margin: ${Math.round(8*s)}px 0 !important; }
-    :where(#wenyan) table { font-size: ${Math.round(14*s)}px !important; }
+    :where(#wenyan) table { font-size: ${Math.round(14*s)}px !important; margin: ${Math.round(8*s)}px auto !important; }
+    :where(#wenyan) hr { margin: ${Math.round(10*s)}px 0 !important; }
     :where(#wenyan) th, :where(#wenyan) td { padding: ${Math.round(10*s)}px !important; }
+    :where(#wenyan)::after { margin-top: ${Math.round(8*s)}px !important; height: 30px !important; }
   `;
 }
 
@@ -11048,10 +11072,18 @@ function getXhsDimensions() {
 }
 
 function normalizeImageUrls(html) {
+  // For URLs with ! suffix (like xxx.png!2.webp), strip for preview but store original in data-orig-url
   let result = html.replace(
-    /src="([^"]*?\.(?:png|jpg|jpeg|gif|bmp|svg|webp|tiff|ico))![^"]*?"/gi,
-    'src="$1"'
+    /src="([^"]*?\.(?:png|jpg|jpeg|gif|bmp|svg|webp|tiff|ico))!([^"]*?)"/gi,
+    (match, baseUrl, suffix) => {
+      const fullOrigUrl = baseUrl + '!' + suffix;
+      if (/^https?:\/\//i.test(baseUrl)) {
+        return `src="/api/proxy-image?url=${encodeURIComponent(baseUrl)}" data-orig-url="${fullOrigUrl}"`;
+      }
+      return `src="${baseUrl}" data-orig-url="${fullOrigUrl}"`;
+    }
   );
+  // Proxy remaining external URLs (those without ! suffix)
   result = result.replace(
     /src="(https?:\/\/[^"]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg))"/gi,
     (match, url) => `src="/api/proxy-image?url=${encodeURIComponent(url)}"`
@@ -11563,24 +11595,71 @@ function toolbarAction(action) {
   renderMarkdown();
 }
 
-// ========== COPY HTML ==========
+// ========== COPY HTML (v2: inline all styles + pseudo-elements) ==========
 function copyHtml() {
   const wenyan = document.getElementById('wenyan');
-  const html = wenyan.innerHTML;
-
-  // Build full styled HTML
   const themeCss = state.mode === 'whole'
     ? (THEMES[state.currentTheme] || '')
     : buildMixedCss();
 
-  // Extract background-related props from #wenyan CSS block for inline style
-  // WeChat supports background-image with linear-gradient in inline styles
-  // when copied via ClipboardItem (text/html), same as xhs.pro
+  // 1. Clone the wenyan element for manipulation (don't touch the live DOM)
+  const clone = wenyan.cloneNode(true);
+
+  // 2. Inline computed styles from live elements → clone elements
+  const liveEls = [wenyan, ...wenyan.querySelectorAll('*')];
+  const cloneEls = [clone, ...clone.querySelectorAll('*')];
+
+  const copyProps = [
+    'color', 'font-size', 'font-weight', 'font-style', 'font-family',
+    'letter-spacing', 'text-align', 'text-decoration', 'text-decoration-line',
+    'background-color', 'background-image', 'background-size', 'background-repeat',
+    'background-position', 'background-attachment',
+    'border', 'border-left', 'border-top', 'border-right', 'border-bottom',
+    'border-radius', 'border-color', 'border-left-color', 'border-style',
+    'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+    'box-shadow', 'opacity',
+    // NOTE: margin-top/margin-bottom intentionally excluded — getComputedStyle
+    // returns layout-dependent values that clash with WeChat's own spacing.
+    // Only margin-left/right kept for list/blockquote indentation.
+    'margin-left', 'margin-right',
+    'list-style-type', 'vertical-align',
+    // NOTE: display/width/height/overflow/line-height excluded —
+    // WeChat editor handles its own layout; inlining these causes text overlap.
+  ];
+
+  liveEls.forEach((liveEl, i) => {
+    const cloneEl = cloneEls[i];
+    if (!cloneEl) return;
+    try {
+      const computed = getComputedStyle(liveEl);
+      let s = cloneEl.getAttribute('style') || '';
+      if (s && !s.endsWith(';')) s += ';';
+      for (const prop of copyProps) {
+        const val = computed.getPropertyValue(prop);
+        if (val && val !== 'initial' && val !== 'unset' && val !== 'inherit') {
+          s += prop + ':' + val + ';';
+        }
+      }
+      cloneEl.setAttribute('style', s);
+    } catch(e) {}
+  });
+
+  // 3. Inject pseudo-elements (::before / ::after) as <span> elements
+  injectPseudoElements(clone, themeCss);
+
+  // 4. Restore original image URLs (normalizeImageUrls strips !2.webp suffix)
+  clone.querySelectorAll('img').forEach(img => {
+    const origUrl = img.getAttribute('data-orig-url');
+    if (origUrl) img.setAttribute('src', origUrl);
+  });
+
+  // 5. Extract #wenyan background/padding for the outer <section> wrapper
   let bgInline = '';
   const wenyanMatch = themeCss.match(/#wenyan\s*\{([^}]*)\}/);
   if (wenyanMatch) {
     const block = wenyanMatch[1];
-    const bgProps = ['background', 'background-color', 'background-image', 'background-size', 'background-repeat', 'background-position', 'background-attachment', 'padding'];
+    const bgProps = ['background', 'background-color', 'background-image', 'background-size',
+                     'background-repeat', 'background-position', 'background-attachment', 'padding'];
     for (const prop of bgProps) {
       const re = new RegExp(prop + '\\s*:\\s*([^;]+);');
       const m = block.match(re);
@@ -11589,11 +11668,10 @@ function copyHtml() {
   }
 
   const fullHtml = `<section style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.75; font-size: 16px;${bgInline}">
-${html}
+${clone.innerHTML}
 </section>`;
 
-  // Use ClipboardItem with text/html (like xhs.pro)
-  // This preserves background-image: linear-gradient in WeChat paste
+  // 6. ClipboardItem (text/html) — preserves background-image in WeChat
   const blob = new Blob([fullHtml], { type: 'text/html' });
   const item = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([fullHtml], { type: 'text/plain' }) });
   navigator.clipboard.write([item]).then(() => {
@@ -11601,10 +11679,7 @@ ${html}
     const orig = btn.innerHTML;
     btn.innerHTML = '✓ 已复制';
     btn.classList.add('active');
-    setTimeout(() => {
-      btn.innerHTML = orig;
-      btn.classList.remove('active');
-    }, 2000);
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('active'); }, 2000);
   }).catch(() => {
     // Fallback: selection + execCommand
     const tmp = document.createElement('div');
@@ -11630,6 +11705,74 @@ ${html}
       setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('active'); }, 2000);
     }
   });
+}
+
+// Inject ::before / ::after pseudo-elements as real <span> elements for clipboard copy
+function injectPseudoElements(clone, themeCss) {
+  const tempStyle = document.createElement('style');
+  tempStyle.textContent = themeCss;
+  document.head.appendChild(tempStyle);
+  try {
+    const sheet = tempStyle.sheet;
+    if (!sheet) return;
+    for (const rule of sheet.cssRules) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const sel = rule.selectorText;
+      if (!sel) continue;
+
+      let pseudoType = null;
+      let realSel = sel;
+      if (sel.includes('::before'))      { pseudoType = 'before'; realSel = sel.replace(/::before/g, ''); }
+      else if (sel.includes('::after'))  { pseudoType = 'after';  realSel = sel.replace(/::after/g, ''); }
+      if (!pseudoType) continue;
+
+      // Strip #wenyan prefix → query within clone
+      realSel = realSel.replace(/#wenyan\s*/g, '').trim();
+      if (!realSel) realSel = '*';
+
+      try {
+        const elements = clone.querySelectorAll(realSel);
+        elements.forEach(el => {
+          // Avoid duplicates
+          if (el.querySelector('.pseudo-' + pseudoType)) return;
+
+          const contentVal = rule.style.getPropertyValue('content');
+          if (!contentVal || contentVal === 'normal' || contentVal === 'none') return;
+
+          const span = document.createElement('span');
+          span.className = 'pseudo-' + pseudoType;
+
+          // Build inline style: copy all props except position-related ones
+          let styleText = '';
+          for (let j = 0; j < rule.style.length; j++) {
+            const prop = rule.style[j];
+            if (prop === 'content') continue;
+            if (/^(position|top|left|right|bottom|z-index|transform|float|clear)$/i.test(prop)) continue;
+            styleText += prop + ':' + rule.style.getPropertyValue(prop) + ';';
+          }
+          span.style.cssText = styleText;
+
+          // Handle content: url(...) → <img>
+          const urlMatch = contentVal.match(/url\(["']?([^"')]+)["']?\)/);
+          if (urlMatch) {
+            const img = document.createElement('img');
+            img.src = urlMatch[1];
+            img.style.cssText = styleText;
+            span.appendChild(img);
+          } else {
+            // content: "text" → text node
+            const txt = contentVal.replace(/^["']|["']$/g, '');
+            span.textContent = txt;
+          }
+
+          if (pseudoType === 'before') el.insertBefore(span, el.firstChild);
+          else el.appendChild(span);
+        });
+      } catch(e) {}
+    }
+  } finally {
+    document.head.removeChild(tempStyle);
+  }
 }
 
 function buildMixedCss() {
